@@ -1,0 +1,14 @@
+node_modules
+.env
+.env.*
+!.env.example
+/data
+/build
+/.svelte-kit
+/package
+.DS_Store
+Thumbs.db
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
