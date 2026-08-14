@@ -4,6 +4,21 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Card, CardHeader, CardTitle, CardContent } from '$lib/components/ui/card';
+	import { Badge } from '$lib/components/ui/badge';
+	import {
+		Table,
+		TableHeader,
+		TableBody,
+		TableRow,
+		TableHead,
+		TableCell
+	} from '$lib/components/ui/table';
+	import {
+		Select,
+		SelectTrigger,
+		SelectContent,
+		SelectItem
+	} from '$lib/components/ui/select';
 
 	const users = listUsers();
 
@@ -51,7 +66,10 @@
 <div class="space-y-4">
 	<div class="flex items-center justify-between">
 		<h1 class="text-xl font-semibold">Members</h1>
-		<Button onclick={() => (showAddForm = !showAddForm)}>
+		<Button
+			onclick={() => (showAddForm = !showAddForm)}
+			variant={showAddForm ? 'outline' : 'default'}
+		>
 			{showAddForm ? 'Cancel' : 'Add user'}
 		</Button>
 	</div>
@@ -63,7 +81,7 @@
 			</CardHeader>
 			<CardContent>
 				<form onsubmit={handleSubmit} class="space-y-4">
-					<div class="grid grid-cols-2 gap-4">
+					<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 						<div class="space-y-1">
 							<Label for="name">Name</Label>
 							<Input id="name" bind:value={name} required />
@@ -75,14 +93,21 @@
 						<div class="space-y-1">
 							<Label for="password">Initial password</Label>
 							<Input id="password" type="password" bind:value={password} minlength={8} required />
-							<p class="text-xs text-muted-foreground">Share this with them directly — they can change it after signing in.</p>
+							<p class="text-xs text-muted-foreground">
+								Share this with them directly — they can change it after signing in.
+							</p>
 						</div>
 						<div class="space-y-1">
 							<Label for="role">Role</Label>
-							<select id="role" bind:value={role} class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm">
-								<option value="user">Member</option>
-								<option value="admin">Admin</option>
-							</select>
+							<Select type="single" value={role} onValueChange={(v: string) => (role = v as 'user' | 'admin')}>
+								<SelectTrigger id="role" class="w-full">
+									{role === 'admin' ? 'Admin' : 'Member'}
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="user">Member</SelectItem>
+									<SelectItem value="admin">Admin</SelectItem>
+								</SelectContent>
+							</Select>
 						</div>
 					</div>
 
@@ -90,7 +115,7 @@
 						<p class="text-sm text-destructive">{formError}</p>
 					{/if}
 
-					<Button type="submit" disabled={submitting}>
+					<Button type="submit" disabled={submitting} class="w-full sm:w-auto">
 						{submitting ? 'Creating…' : 'Create user'}
 					</Button>
 				</form>
@@ -101,37 +126,87 @@
 	{#await users}
 		<p class="text-sm text-muted-foreground">Loading…</p>
 	{:then rows}
-		<div class="overflow-hidden rounded-lg border border-border bg-card">
-			<table class="w-full text-sm">
-				<thead class="border-b border-border bg-muted/50 text-left text-muted-foreground">
-					<tr>
-						<th class="px-4 py-2 font-medium">Name</th>
-						<th class="px-4 py-2 font-medium">Email</th>
-						<th class="px-4 py-2 font-medium">Role</th>
-						<th class="px-4 py-2 font-medium">Joined</th>
-						<th class="px-4 py-2 font-medium"></th>
-					</tr>
-				</thead>
-				<tbody class="divide-y divide-border">
-					{#each rows as u (u.id)}
-						<tr>
-							<td class="px-4 py-2">{u.name}</td>
-							<td class="px-4 py-2">{u.email}</td>
-							<td class="px-4 py-2 capitalize">{u.role === 'admin' ? 'Admin' : 'Member'}</td>
-							<td class="px-4 py-2 text-muted-foreground">
-								{new Date(u.createdAt).toLocaleDateString()}
-							</td>
-							<td class="px-4 py-2 text-right">
-								<Button variant="ghost" size="sm" onclick={() => remove(u.id, u.email)}>Remove</Button>
-							</td>
-						</tr>
-					{:else}
-						<tr>
-							<td colspan="5" class="px-4 py-6 text-center text-muted-foreground">No users yet.</td>
-						</tr>
-					{/each}
-				</tbody>
-			</table>
-		</div>
+		<Card>
+			<CardContent class="p-0">
+				{#if rows.length === 0}
+					<p class="p-6 text-center text-sm text-muted-foreground">No users yet.</p>
+				{:else}
+					<!-- Desktop table -->
+					<div class="hidden sm:block">
+						<Table>
+							<TableHeader>
+								<TableRow>
+									<TableHead>Name</TableHead>
+									<TableHead>Email</TableHead>
+									<TableHead>Role</TableHead>
+									<TableHead>Joined</TableHead>
+									<TableHead></TableHead>
+								</TableRow>
+							</TableHeader>
+							<TableBody>
+								{#each rows as u (u.id)}
+									<TableRow>
+										<TableCell class="font-medium">{u.name}</TableCell>
+										<TableCell class="text-muted-foreground">{u.email}</TableCell>
+										<TableCell>
+											<Badge
+												variant={u.role === 'admin' ? 'default' : 'secondary'}
+												class="text-[10px]"
+											>
+												{u.role === 'admin' ? 'Admin' : 'Member'}
+											</Badge>
+										</TableCell>
+										<TableCell class="text-muted-foreground text-sm">
+											{new Date(u.createdAt).toLocaleDateString()}
+										</TableCell>
+										<TableCell class="text-right">
+											<Button
+												variant="ghost"
+												size="sm"
+												class="text-destructive hover:bg-destructive/10"
+												onclick={() => remove(u.id, u.email)}
+											>
+												Remove
+											</Button>
+										</TableCell>
+									</TableRow>
+								{/each}
+							</TableBody>
+						</Table>
+					</div>
+
+					<!-- Mobile card view -->
+					<div class="divide-y divide-border sm:hidden">
+						{#each rows as u (u.id)}
+							<div class="flex items-center justify-between p-4">
+								<div class="space-y-1">
+									<div class="flex items-center gap-2">
+										<span class="font-medium text-sm">{u.name}</span>
+										<Badge
+											variant={u.role === 'admin' ? 'default' : 'secondary'}
+											class="text-[10px]"
+										>
+											{u.role === 'admin' ? 'Admin' : 'Member'}
+										</Badge>
+									</div>
+									<p class="text-xs text-muted-foreground">{u.email}</p>
+									<p class="text-xs text-muted-foreground">
+										Joined {new Date(u.createdAt).toLocaleDateString()}
+									</p>
+								</div>
+								<Button
+									variant="ghost"
+									size="sm"
+									class="text-destructive hover:bg-destructive/10 shrink-0"
+									onclick={() => remove(u.id, u.email)}
+								>
+									Remove
+								</Button>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</CardContent>
+		</Card>
 	{/await}
 </div>

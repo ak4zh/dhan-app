@@ -12,8 +12,16 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Switch } from '$lib/components/ui/switch';
 	import { Card, CardHeader, CardTitle, CardContent } from '$lib/components/ui/card';
-	import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '$lib/components/ui/table';
+	import {
+		Table,
+		TableHeader,
+		TableBody,
+		TableRow,
+		TableHead,
+		TableCell
+	} from '$lib/components/ui/table';
 	import { Badge } from '$lib/components/ui/badge';
+	import { Tabs, TabsList, TabsTrigger, TabsContent } from '$lib/components/ui/tabs';
 
 	const accounts = listLinkedAccounts();
 
@@ -47,7 +55,13 @@
 		label = '';
 		multiplier = 1;
 		kiteApiKey = kiteApiSecret = kiteUserId = kitePassword = kiteTotpSecret = '';
-		kotakConsumerKey = kotakConsumerSecret = kotakMobileNumber = kotakPassword = kotakTotpSecret = kotakMpin = '';
+		kotakConsumerKey =
+			kotakConsumerSecret =
+			kotakMobileNumber =
+			kotakPassword =
+			kotakTotpSecret =
+			kotakMpin =
+				'';
 		formError = null;
 	}
 
@@ -109,9 +123,15 @@
 	<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 		<div>
 			<h1 class="text-2xl font-bold tracking-tight">Linked Accounts</h1>
-			<p class="text-xs text-muted-foreground sm:text-sm">Manage trade replication follower accounts</p>
+			<p class="text-xs text-muted-foreground sm:text-sm">
+				Manage trade replication follower accounts
+			</p>
 		</div>
-		<Button onclick={() => (showAddForm = !showAddForm)} variant={showAddForm ? 'outline' : 'default'} class="w-full sm:w-auto">
+		<Button
+			onclick={() => (showAddForm = !showAddForm)}
+			variant={showAddForm ? 'outline' : 'default'}
+			class="w-full sm:w-auto"
+		>
 			{showAddForm ? 'Cancel' : '+ Add Account'}
 		</Button>
 	</div>
@@ -122,18 +142,23 @@
 				<CardTitle class="text-base font-semibold">Add Follower Account</CardTitle>
 			</CardHeader>
 			<CardContent>
-				<form onsubmit={handleSubmit} class="space-y-4">
-					<div class="flex items-center gap-6 rounded-lg border border-border bg-muted/40 p-3">
-						<label class="flex items-center gap-2 text-sm font-medium cursor-pointer">
-							<input type="radio" name="broker" value="kite" bind:group={broker} class="accent-primary" />
-							Kite (Zerodha)
-						</label>
-						<label class="flex items-center gap-2 text-sm font-medium cursor-pointer">
-							<input type="radio" name="broker" value="kotak_neo" bind:group={broker} class="accent-primary" />
-							Kotak Neo
-						</label>
+				<form onsubmit={handleSubmit} class="space-y-5">
+					<!-- Broker selection via Tabs -->
+					<div class="space-y-1">
+						<Label>Broker</Label>
+						<Tabs
+							value={broker}
+							onValueChange={(v) => (broker = v as 'kite' | 'kotak_neo')}
+							class="w-full"
+						>
+							<TabsList class="w-full sm:w-auto">
+								<TabsTrigger value="kite" class="flex-1 sm:flex-none">Kite (Zerodha)</TabsTrigger>
+								<TabsTrigger value="kotak_neo" class="flex-1 sm:flex-none">Kotak Neo</TabsTrigger>
+							</TabsList>
+						</Tabs>
 					</div>
 
+					<!-- Common fields -->
 					<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
 						<div class="space-y-1">
 							<Label for="id">Account ID (Slug)</Label>
@@ -145,10 +170,19 @@
 						</div>
 						<div class="space-y-1">
 							<Label for="multiplier">Quantity Multiplier</Label>
-							<Input id="multiplier" type="number" step="0.1" min="0.01" max="10" bind:value={multiplier} required />
+							<Input
+								id="multiplier"
+								type="number"
+								step="0.1"
+								min="0.01"
+								max="10"
+								bind:value={multiplier}
+								required
+							/>
 						</div>
 					</div>
 
+					<!-- Broker-specific fields -->
 					{#if broker === 'kite'}
 						<div class="grid grid-cols-1 gap-4 border-t border-border pt-4 sm:grid-cols-2">
 							<div class="space-y-1">
@@ -180,7 +214,12 @@
 							</div>
 							<div class="space-y-1">
 								<Label for="kotakConsumerSecret">Consumer Secret</Label>
-								<Input id="kotakConsumerSecret" type="password" bind:value={kotakConsumerSecret} required />
+								<Input
+									id="kotakConsumerSecret"
+									type="password"
+									bind:value={kotakConsumerSecret}
+									required
+								/>
 							</div>
 							<div class="space-y-1">
 								<Label for="kotakMobileNumber">Mobile Number</Label>
@@ -192,7 +231,12 @@
 							</div>
 							<div class="space-y-1">
 								<Label for="kotakTotpSecret">TOTP Secret</Label>
-								<Input id="kotakTotpSecret" type="password" bind:value={kotakTotpSecret} required />
+								<Input
+									id="kotakTotpSecret"
+									type="password"
+									bind:value={kotakTotpSecret}
+									required
+								/>
 							</div>
 							<div class="space-y-1">
 								<Label for="kotakMpin">MPIN</Label>
@@ -202,7 +246,7 @@
 					{/if}
 
 					{#if formError}
-						<p class="text-sm text-destructive font-medium">{formError}</p>
+						<p class="text-sm font-medium text-destructive">{formError}</p>
 					{/if}
 
 					<Button type="submit" disabled={submitting} class="w-full sm:w-auto">
@@ -215,7 +259,7 @@
 
 	{#await accounts}
 		<Card class="animate-pulse p-6">
-			<div class="h-4 w-32 bg-muted rounded"></div>
+			<div class="h-4 w-32 rounded bg-muted"></div>
 		</Card>
 	{:then rows}
 		<Card>
@@ -223,7 +267,7 @@
 				{#if rows.length === 0}
 					<p class="p-6 text-center text-sm text-muted-foreground">No accounts linked yet.</p>
 				{:else}
-					<!-- Desktop Table View -->
+					<!-- Desktop table -->
 					<div class="hidden sm:block">
 						<Table>
 							<TableHeader>
@@ -240,24 +284,32 @@
 									<TableRow>
 										<TableCell class="font-semibold">{row.label}</TableCell>
 										<TableCell>
-											<Badge variant="outline" class="uppercase">{row.broker}</Badge>
+											<Badge variant="outline" class="uppercase text-xs">{row.broker}</Badge>
 										</TableCell>
-										<TableCell class="text-center font-mono">
-											<input
+										<TableCell class="text-center">
+											<Input
 												type="number"
 												step="0.1"
 												min="0.01"
 												max="10"
 												value={row.multiplier}
 												onchange={(e) => updateMultiplier(row.id, e)}
-												class="w-20 rounded-md border border-border bg-background px-2 py-1 text-center font-mono text-sm"
+												class="w-20 text-center font-mono mx-auto"
 											/>
 										</TableCell>
 										<TableCell class="text-center">
-											<Switch checked={row.enabled} onCheckedChange={(v: boolean) => toggle(row.id, v)} />
+											<Switch
+												checked={row.enabled}
+												onCheckedChange={(v: boolean) => toggle(row.id, v)}
+											/>
 										</TableCell>
 										<TableCell class="text-right">
-											<Button variant="ghost" size="sm" class="text-destructive hover:bg-destructive/10" onclick={() => remove(row.id)}>
+											<Button
+												variant="ghost"
+												size="sm"
+												class="text-destructive hover:bg-destructive/10"
+												onclick={() => remove(row.id)}
+											>
 												Remove
 											</Button>
 										</TableCell>
@@ -267,34 +319,44 @@
 						</Table>
 					</div>
 
-					<!-- Mobile Card View -->
+					<!-- Mobile card view -->
 					<div class="divide-y divide-border sm:hidden">
 						{#each rows as row (row.id)}
-							<div class="p-4 space-y-3">
+							<div class="space-y-3 p-4">
 								<div class="flex items-center justify-between">
 									<span class="font-semibold text-sm">{row.label}</span>
 									<Badge variant="outline" class="uppercase text-[10px]">{row.broker}</Badge>
 								</div>
-								<div class="flex items-center justify-between text-xs pt-1">
-									<div class="flex items-center gap-2">
-										<span class="text-muted-foreground">Multiplier:</span>
-										<input
+								<div class="grid grid-cols-2 gap-3">
+									<div class="space-y-1">
+										<Label class="text-xs text-muted-foreground">Multiplier</Label>
+										<Input
 											type="number"
 											step="0.1"
 											min="0.01"
 											max="10"
 											value={row.multiplier}
 											onchange={(e) => updateMultiplier(row.id, e)}
-											class="w-16 rounded border border-border bg-background px-1.5 py-0.5 text-center font-mono text-xs"
+											class="h-8 text-center font-mono text-sm"
 										/>
 									</div>
-									<div class="flex items-center gap-2">
-										<span class="text-muted-foreground">Enabled:</span>
-										<Switch checked={row.enabled} onCheckedChange={(v: boolean) => toggle(row.id, v)} />
+									<div class="space-y-1">
+										<Label class="text-xs text-muted-foreground">Enabled</Label>
+										<div class="flex items-center h-8">
+											<Switch
+												checked={row.enabled}
+												onCheckedChange={(v: boolean) => toggle(row.id, v)}
+											/>
+										</div>
 									</div>
 								</div>
-								<div class="pt-2 text-right">
-									<Button variant="ghost" size="xs" class="text-destructive hover:bg-destructive/10" onclick={() => remove(row.id)}>
+								<div class="flex justify-end">
+									<Button
+										variant="ghost"
+										size="sm"
+										class="text-destructive hover:bg-destructive/10"
+										onclick={() => remove(row.id)}
+									>
 										Remove
 									</Button>
 								</div>
