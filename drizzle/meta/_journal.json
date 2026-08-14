@@ -8,6 +8,13 @@
       "when": 1786618565957,
       "tag": "0000_hot_adam_warlock",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1786688306346,
+      "tag": "0001_next_johnny_blaze",
+      "breakpoints": true
     }
   ]
 }

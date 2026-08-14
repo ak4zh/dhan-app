@@ -226,3 +226,37 @@ export async function fetchDhanTradeHistory(
 }
 
 
+export interface DhanLedgerEntry {
+	dhanClientId?: string;
+	narration: string;
+	voucherdate: string; // e.g. "Jun 22, 2022"
+	exchange?: string;
+	voucherdesc?: string;
+	vouchernumber: string;
+	debit: string;
+	credit: string;
+	runbal: string;
+	[key: string]: unknown;
+}
+
+/**
+ * GET /v2/ledger — every credit/debit on the trading account (bank
+ * deposits/withdrawals, trade settlements, charges, all mixed together).
+ * https://dhanhq.co/docs/v2/statements/
+ * No pagination documented for this endpoint (unlike /v2/trades), so a
+ * single call per date range is all it takes.
+ */
+export async function fetchDhanLedger(
+	clientId: string,
+	accessToken: string,
+	fromDate: string,
+	toDate: string
+): Promise<DhanLedgerEntry[]> {
+	try {
+		const body = await dhanFetch(`/ledger?from-date=${fromDate}&to-date=${toDate}`, clientId, accessToken);
+		return Array.isArray(body) ? body : (body?.data ?? []);
+	} catch (err) {
+		console.error('Error fetching Dhan ledger:', err);
+		return [];
+	}
+}

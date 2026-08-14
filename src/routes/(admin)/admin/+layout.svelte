@@ -17,7 +17,8 @@
 	const navItems = [
 		{ href: '/admin', label: 'Overview' },
 		{ href: '/admin/members', label: 'Members' },
-		{ href: '/admin/accounts', label: 'Linked Accounts' }
+		{ href: '/admin/accounts', label: 'Linked Accounts' },
+		{ href: '/admin/performance', label: 'Manager Performance' }
 	];
 </script>
 
