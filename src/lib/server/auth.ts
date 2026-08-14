@@ -6,9 +6,11 @@ import * as schema from './db/schema';
 
 /**
  * Invite-only app: there is no public sign-up route. The admin (you) creates
- * member accounts from the admin dashboard via the `admin` plugin's
- * createUser API, which is also what gives us `user.role` ("admin" | "member")
- * without hand-rolling a roles table.
+ * accounts from the admin dashboard via the `admin` plugin's createUser API.
+ * Uses the plugin's built-in "user"/"admin" roles (not a custom "member" role)
+ * — "user" is the default role and already correctly typed out of the box.
+ * The product-facing "Member" wording lives purely in the UI layer (see the
+ * Members page), not in the role value itself.
  */
 export const auth = betterAuth({
 	database: drizzleAdapter(db, {
@@ -24,7 +26,7 @@ export const auth = betterAuth({
 	},
 	plugins: [
 		admin({
-			defaultRole: 'member',
+			defaultRole: 'user',
 			adminRoles: ['admin']
 		})
 	],

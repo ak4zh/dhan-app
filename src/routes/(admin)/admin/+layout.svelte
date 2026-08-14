@@ -16,6 +16,7 @@
 
 	const navItems = [
 		{ href: '/admin', label: 'Overview' },
+		{ href: '/admin/members', label: 'Members' },
 		{ href: '/admin/accounts', label: 'Linked Accounts' }
 	];
 </script>
