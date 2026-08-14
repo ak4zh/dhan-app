@@ -7,8 +7,8 @@ WORKDIR /app
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN npm install -g pnpm@9
 
-# Copy package manifests
-COPY package.json pnpm-lock.yaml ./
+# Copy package manifests (including workspace config)
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile
@@ -16,8 +16,9 @@ RUN pnpm install --frozen-lockfile
 # Copy application source files
 COPY . .
 
-# Set dummy secret required by better-auth during build-time route evaluation
-ENV BETTER_AUTH_SECRET=build_placeholder_secret_key_32bytes
+# Set dummy secrets required by better-auth and app validation during build-time
+ENV BETTER_AUTH_SECRET=build_placeholder_secret_key_32bytes \
+    DHAN_CLIENT_ID=build_placeholder_dhan_client_id
 
 # Build SvelteKit standalone Node server
 RUN pnpm build
