@@ -3,8 +3,9 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# Enable pnpm via corepack
-RUN corepack enable
+# Disable Corepack interactive download prompt & install pnpm globally
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+RUN npm install -g pnpm@9
 
 # Copy package manifests
 COPY package.json pnpm-lock.yaml ./
