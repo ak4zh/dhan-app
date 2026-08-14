@@ -1,53 +1,56 @@
-# Stage 1: Build stage
-FROM node:22-alpine AS builder
+# syntax=docker/dockerfile:1
 
+FROM node:24-bookworm-slim AS build
 WORKDIR /app
 
-# Disable Corepack interactive download prompt & install pnpm globally
-ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
-RUN npm install -g pnpm@9
+RUN corepack enable && corepack prepare pnpm@10.2.0 --activate
 
-# Copy package manifests (including workspace config)
+# Install deps in their own layer so `pnpm install` is cache-skipped on
+# source-only changes.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-
-# Install dependencies
 RUN pnpm install --frozen-lockfile
 
-# Copy application source files
 COPY . .
 
-# Set dummy secrets required by better-auth and app validation during build-time
-ENV BETTER_AUTH_SECRET=build_placeholder_secret_key_32bytes \
-    DHAN_CLIENT_ID=build_placeholder_dhan_client_id
+# SvelteKit's postbuild "analyse" step imports every server module (db client,
+# auth.ts) to determine route prerendering — which means it actually runs
+# their top-level code. db/client.ts opens the DB connection eagerly, and
+# better-auth throws (not warns) if BETTER_AUTH_SECRET is unset. Neither of
+# these placeholder values reaches the runtime image or gets baked into the
+# build output — the real ones come from CapRover's env vars when the
+# container actually starts and re-imports this code fresh.
+RUN mkdir -p data
+ENV BETTER_AUTH_SECRET=build-time-placeholder-unused-at-runtime
+RUN pnpm run build
 
-# Build SvelteKit standalone Node server
-RUN pnpm build
+# ---------------------------------------------------------------------------
 
-# Prune dev dependencies for runtime
-RUN pnpm prune --prod
-
-# Stage 2: Production runner stage
-FROM node:22-alpine AS runner
-
+FROM node:24-bookworm-slim AS runtime
 WORKDIR /app
 
-# Set default production environment variables
-ENV NODE_ENV=production \
-    PORT=3000 \
-    HOST=0.0.0.0 \
-    DB_PATH=file:/app/data/app.db
+ENV NODE_ENV=production
+ENV HOST=0.0.0.0
+ENV PORT=80
 
-# Create persistent data directory and ensure ownership by node user
-RUN mkdir -p /app/data && chown -R node:node /app
+# node_modules is carried over as-is (including devDependencies) rather than
+# pruned, so `scripts/seed-admin.ts` can still be run one-off via `tsx` inside
+# the running container (see README) without a separate install step.
+COPY --from=build /app/build ./build
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/package.json ./package.json
+COPY --from=build /app/src ./src
+COPY --from=build /app/scripts ./scripts
+COPY --from=build /app/drizzle ./drizzle
+COPY --from=build /app/drizzle.config.ts ./drizzle.config.ts
+COPY --from=build /app/tsconfig.json ./tsconfig.json
 
-# Copy production dependencies and built assets from builder stage
-COPY --from=builder --chown=node:node /app/package.json ./
-COPY --from=builder --chown=node:node /app/node_modules ./node_modules
-COPY --from=builder --chown=node:node /app/build ./build
+COPY docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x docker-entrypoint.sh
 
-# Switch to non-root user for security
-USER node
+# CapRover: add a Persistent Directory mapped to this path so the SQLite file
+# (and better-auth's tables in it) survive redeploys.
+VOLUME ["/app/data"]
 
-EXPOSE 3000
+EXPOSE 80
 
-CMD ["node", "build"]
+ENTRYPOINT ["./docker-entrypoint.sh"]
