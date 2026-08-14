@@ -20,7 +20,7 @@
 		}
 	});
 
-	export type BadgeVariant = VariantProps<typeof badgeVariants>["variant"];
+	type BadgeVariant = VariantProps<typeof badgeVariants>["variant"];
 
 	let {
 		ref = $bindable(null),

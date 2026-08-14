@@ -1,11 +1,22 @@
-import { drizzle } from 'drizzle-orm/better-sqlite3';
-import Database from 'better-sqlite3';
+import { drizzle } from 'drizzle-orm/libsql';
+import { createClient } from '@libsql/client';
 import * as schema from './schema';
 
-const DB_PATH = process.env.DB_PATH ?? './data/app.db';
+const rawDbPath = process.env.DB_PATH ?? 'file:./data/app.db';
 
-const sqlite = new Database(DB_PATH);
-sqlite.pragma('journal_mode = WAL');
-sqlite.pragma('foreign_keys = ON');
+// Ensure file paths have the file: prefix expected by @libsql/client if not using HTTP/libsql protocol
+const url =
+	rawDbPath.startsWith('file:') ||
+	rawDbPath.startsWith('http:') ||
+	rawDbPath.startsWith('https:') ||
+	rawDbPath.startsWith('libsql:')
+		? rawDbPath
+		: `file:${rawDbPath}`;
 
-export const db = drizzle(sqlite, { schema });
+const client = createClient({
+	url,
+	authToken: process.env.DB_AUTH_TOKEN
+});
+
+export const db = drizzle(client, { schema });
+

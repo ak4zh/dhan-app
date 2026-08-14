@@ -254,7 +254,7 @@
 											/>
 										</TableCell>
 										<TableCell class="text-center">
-											<Switch checked={row.enabled} onCheckedChange={(v) => toggle(row.id, v)} />
+											<Switch checked={row.enabled} onCheckedChange={(v: boolean) => toggle(row.id, v)} />
 										</TableCell>
 										<TableCell class="text-right">
 											<Button variant="ghost" size="sm" class="text-destructive hover:bg-destructive/10" onclick={() => remove(row.id)}>
@@ -290,7 +290,7 @@
 									</div>
 									<div class="flex items-center gap-2">
 										<span class="text-muted-foreground">Enabled:</span>
-										<Switch checked={row.enabled} onCheckedChange={(v) => toggle(row.id, v)} />
+										<Switch checked={row.enabled} onCheckedChange={(v: boolean) => toggle(row.id, v)} />
 									</div>
 								</div>
 								<div class="pt-2 text-right">

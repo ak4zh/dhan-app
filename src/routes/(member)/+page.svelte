@@ -80,11 +80,11 @@
 
 			<Card>
 				<CardHeader class="pb-1 pt-4 px-4 sm:px-6">
-					<CardDescription class="text-xs font-medium uppercase tracking-wider">Charges (Est.)</CardDescription>
+					<CardDescription class="text-xs font-medium uppercase tracking-wider">Taxes & Charges</CardDescription>
 				</CardHeader>
 				<CardContent class="pb-4 px-4 sm:px-6">
 					<div class="text-xl font-bold text-muted-foreground sm:text-2xl">
-						₹{fmt(data.totalCharges)}
+						-₹{fmt(data.totalCharges)}
 					</div>
 				</CardContent>
 			</Card>
@@ -97,6 +97,9 @@
 					<div class="text-xl font-bold sm:text-2xl {pnlColor(data.netPnlAfterCharges)}">
 						{data.netPnlAfterCharges >= 0 ? '+' : ''}₹{fmt(data.netPnlAfterCharges)}
 					</div>
+					<p class="text-[10px] text-muted-foreground font-mono mt-0.5">
+						Gross P&L (₹{fmt(data.grossNetPnl)}) - Charges (₹{fmt(data.totalCharges)})
+					</p>
 				</CardContent>
 			</Card>
 		</div>

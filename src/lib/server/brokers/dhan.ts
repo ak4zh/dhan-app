@@ -98,6 +98,7 @@ async function refreshTokenOnAuthError(): Promise<string | null> {
 }
 
 function isAuthError(status: number, bodyText: string): boolean {
+	if (bodyText.includes('806') || bodyText.includes('Not Subscribed')) return false;
 	if (status === 401) return true;
 	if (
 		status === 400 &&
@@ -224,46 +225,4 @@ export async function fetchDhanTradeHistory(
 	return all;
 }
 
-// ---------------------------------------------------------------------------
-// Market quote (LTP) — used to fill in unrealized P&L when the
-// portfolio endpoints themselves don't return a live price.
-// ---------------------------------------------------------------------------
 
-export interface LtpLookupKey {
-	exchangeSegment: string; // e.g. "NSE_EQ"
-	securityId: string;
-}
-
-/**
- * POST /v2/marketfeed/ltp — up to 1000 instruments per call, grouped by
- * exchange segment. Returns a Map keyed by "EXCHANGE_SEGMENT:securityId".
- */
-export async function fetchDhanLtp(
-	clientId: string,
-	accessToken: string,
-	keys: LtpLookupKey[]
-): Promise<Map<string, number>> {
-	const result = new Map<string, number>();
-	if (keys.length === 0) return result;
-
-	const bySegment: Record<string, number[]> = {};
-	for (const { exchangeSegment, securityId } of keys) {
-		(bySegment[exchangeSegment] ??= []).push(Number(securityId));
-	}
-
-	try {
-		const body = await dhanFetch('/marketfeed/ltp', clientId, accessToken, {
-			method: 'POST',
-			body: JSON.stringify(bySegment)
-		});
-		const data = body?.data ?? {};
-		for (const [segment, bySecurityId] of Object.entries<any>(data)) {
-			for (const [securityId, quote] of Object.entries<any>(bySecurityId)) {
-				result.set(`${segment}:${securityId}`, Number(quote.last_price) || 0);
-			}
-		}
-	} catch (err) {
-		console.error('Error fetching Dhan LTP:', err);
-	}
-	return result;
-}

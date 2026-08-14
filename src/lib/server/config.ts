@@ -15,14 +15,19 @@ const EnvSchema = v.object({
 	DHAN_PIN: v.optional(v.string()),
 	DHAN_TOTP_SECRET: v.optional(v.string()),
 	// Fallback: a token pasted manually from Dhan Web, used until auto-refresh has run once.
-	DHAN_ACCESS_TOKEN: v.optional(v.string())
+	DHAN_ACCESS_TOKEN: v.optional(v.string()),
+	// Optional Telegram alerts configuration
+	TELEGRAM_BOT_TOKEN: v.optional(v.string()),
+	TELEGRAM_CHAT_ID: v.optional(v.string())
 });
 
 const parsed = v.safeParse(EnvSchema, {
 	DHAN_CLIENT_ID: privateEnv.DHAN_CLIENT_ID ?? process.env.DHAN_CLIENT_ID,
 	DHAN_PIN: privateEnv.DHAN_PIN ?? process.env.DHAN_PIN,
 	DHAN_TOTP_SECRET: privateEnv.DHAN_TOTP_SECRET ?? process.env.DHAN_TOTP_SECRET,
-	DHAN_ACCESS_TOKEN: privateEnv.DHAN_ACCESS_TOKEN ?? process.env.DHAN_ACCESS_TOKEN
+	DHAN_ACCESS_TOKEN: privateEnv.DHAN_ACCESS_TOKEN ?? process.env.DHAN_ACCESS_TOKEN,
+	TELEGRAM_BOT_TOKEN: privateEnv.TELEGRAM_BOT_TOKEN ?? process.env.TELEGRAM_BOT_TOKEN,
+	TELEGRAM_CHAT_ID: privateEnv.TELEGRAM_CHAT_ID ?? process.env.TELEGRAM_CHAT_ID
 });
 
 if (!parsed.success) {
@@ -36,5 +41,7 @@ export const dhanEnv = parsed.success
 			DHAN_CLIENT_ID: privateEnv.DHAN_CLIENT_ID ?? process.env.DHAN_CLIENT_ID ?? '',
 			DHAN_PIN: privateEnv.DHAN_PIN ?? process.env.DHAN_PIN,
 			DHAN_TOTP_SECRET: privateEnv.DHAN_TOTP_SECRET ?? process.env.DHAN_TOTP_SECRET,
-			DHAN_ACCESS_TOKEN: privateEnv.DHAN_ACCESS_TOKEN ?? process.env.DHAN_ACCESS_TOKEN
+			DHAN_ACCESS_TOKEN: privateEnv.DHAN_ACCESS_TOKEN ?? process.env.DHAN_ACCESS_TOKEN,
+			TELEGRAM_BOT_TOKEN: privateEnv.TELEGRAM_BOT_TOKEN ?? process.env.TELEGRAM_BOT_TOKEN,
+			TELEGRAM_CHAT_ID: privateEnv.TELEGRAM_CHAT_ID ?? process.env.TELEGRAM_CHAT_ID
 		};

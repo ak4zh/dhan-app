@@ -1,6 +1,10 @@
 import 'dotenv/config';
 import { redirect, type Handle } from '@sveltejs/kit';
 import { auth } from '$server/auth';
+import { initDhanOrdersWs } from '$server/services/dhan-orders-ws';
+
+// Start Dhan Live Orders WebSocket listener daemon
+initDhanOrdersWs();
 
 /**
  * Page-level gate. This is the UX layer (redirect to /login, bounce members

@@ -1,0 +1,12 @@
+node_modules
+.svelte-kit
+build
+.env
+.env.*
+!.env.example
+.git
+.gitignore
+data/*.db*
+Dockerfile*
+captain-definition
+README.md

@@ -5,7 +5,6 @@ import { tradeLog } from '../db/schema';
 import {
 	fetchDhanFundLimit,
 	fetchDhanHoldings,
-	fetchDhanLtp,
 	fetchDhanPositions,
 	fetchDhanTodaysTrades,
 	fetchDhanTradeHistory,
@@ -113,7 +112,13 @@ function computeFifoRealized(fills: RawTradeInput[]) {
 		qty: Number(t.tradedQuantity) || 0,
 		price: Number(t.tradedPrice) || 0,
 		time: (t.exchangeTime || t.createTime || t.updateTime || '') as string,
-		productType: (t.productType as string) || 'CNC'
+		productType: (t.productType as string) || 'CNC',
+		actualCharges: (Number(t.stt) || 0) +
+			(Number(t.sebiTax) || 0) +
+			(Number(t.brokerageCharges) || 0) +
+			(Number(t.serviceTax) || 0) +
+			(Number(t.exchangeTransactionCharges) || 0) +
+			(Number(t.stampDuty) || 0)
 	}));
 
 	standardized.sort((a, b) => {
@@ -128,7 +133,11 @@ function computeFifoRealized(fills: RawTradeInput[]) {
 
 	for (const t of standardized) {
 		const key = t.securityId || t.symbol;
-		totalCharges += calculateTradeCharges(t.type, t.productType, t.qty, t.price);
+		if (t.actualCharges > 0) {
+			totalCharges += t.actualCharges;
+		} else {
+			totalCharges += calculateTradeCharges(t.type, t.productType, t.qty, t.price);
+		}
 
 		if (t.type === 'BUY') {
 			(buyQueues[key] ??= []).push({ qty: t.qty, price: t.price });
@@ -199,24 +208,6 @@ export async function getPnlSnapshot(lookbackDays = 365): Promise<PnlSnapshot> {
 
 	const { realizedPnl: fifoRealized, totalCharges } = computeFifoRealized(fills);
 
-	// Live LTP lookup for any position/holding line that doesn't already have one —
-	// batched into a single market-quote call rather than fetched per-symbol.
-	const needsLtp: Array<{ exchangeSegment: string; securityId: string }> = [];
-	for (const p of positions) {
-		if (p.netQty !== 0 && !(Number(p.lastTradedPrice) > 0)) {
-			needsLtp.push({ exchangeSegment: p.exchangeSegment, securityId: p.securityId });
-		}
-	}
-	for (const h of holdings) {
-		const hQty = h.availableQty ?? h.totalQty ?? 0;
-		if (hQty > 0 && h.securityId) {
-			needsLtp.push({ exchangeSegment: (h.exchange as string) ?? 'NSE_EQ', securityId: h.securityId });
-		}
-	}
-	const ltpMap = needsLtp.length
-		? await fetchDhanLtp(clientId, accessToken, needsLtp)
-		: new Map<string, number>();
-
 	let holdingsPnl = 0;
 	let positionsPnl = 0;
 	let positionsRealized = 0;
@@ -244,32 +235,24 @@ export async function getPnlSnapshot(lookbackDays = 365): Promise<PnlSnapshot> {
 		positionsRealized += realized;
 
 		let ltp = Number((p as any).lastTradedPrice) || 0;
-		let ltpAvailable = ltp > 0;
-		if (!ltpAvailable) {
-			const looked = ltpMap.get(`${p.exchangeSegment}:${p.securityId}`);
-			if (looked && looked > 0) {
-				ltp = looked;
-				ltpAvailable = true;
-			}
-		}
-
 		let unrealized = Number((p as any).unrealizedProfit) || 0;
-		if (unrealized === 0 && p.netQty !== 0) {
-			if (ltpAvailable) {
-				unrealized =
-					p.netQty > 0 ? (ltp - buyAvg) * p.netQty : (sellAvg - ltp) * Math.abs(p.netQty);
-			} else {
-				hasIncompleteData = true;
-			}
-		}
+		let ltpAvailable = ltp > 0;
 
-		// Derive implied LTP from Dhan-reported unrealized profit if LTP lookup was unavailable
+		// Derive implied LTP from Dhan-reported unrealized profit if LTP field is empty
 		if (!ltpAvailable && p.netQty !== 0 && unrealized !== 0) {
 			ltp = p.netQty > 0
 				? buyAvg + (unrealized / p.netQty)
 				: sellAvg - (unrealized / Math.abs(p.netQty));
 			if (ltp > 0) {
 				ltpAvailable = true;
+			}
+		}
+
+		if (unrealized === 0 && p.netQty !== 0) {
+			if (ltpAvailable) {
+				unrealized = p.netQty > 0 ? (ltp - buyAvg) * p.netQty : (sellAvg - ltp) * Math.abs(p.netQty);
+			} else {
+				hasIncompleteData = true;
 			}
 		}
 
@@ -296,15 +279,8 @@ export async function getPnlSnapshot(lookbackDays = 365): Promise<PnlSnapshot> {
 		if (qty <= 0) continue;
 
 		const avgPrice = h.avgCostPrice || 0;
-		let ltp = Number((h as any).lastTradedPrice) || 0;
-		let ltpAvailable = ltp > 0;
-		if (!ltpAvailable && h.securityId) {
-			const looked = ltpMap.get(`${(h.exchange as string) ?? 'NSE_EQ'}:${h.securityId}`);
-			if (looked && looked > 0) {
-				ltp = looked;
-				ltpAvailable = true;
-			}
-		}
+		const ltp = Number((h as any).lastTradedPrice) || 0;
+		const ltpAvailable = ltp > 0;
 
 		const unrealized = ltpAvailable ? (ltp - avgPrice) * qty : 0;
 		if (!ltpAvailable) hasIncompleteData = true;

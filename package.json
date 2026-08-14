@@ -14,11 +14,11 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@libsql/client": "^0.17.4",
     "@lucide/svelte": "^1.31.0",
     "@sveltejs/adapter-node": "^5.5.7",
     "@sveltejs/kit": "^2.70.2",
     "better-auth": "^1.6.27",
-    "better-sqlite3": "^12.11.1",
     "clsx": "^2.1.1",
     "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31.10",
@@ -36,7 +36,6 @@
     "@internationalized/date": "^3.12.3",
     "@sveltejs/vite-plugin-svelte": "^7.3.0",
     "@tailwindcss/vite": "^4.3.3",
-    "@types/better-sqlite3": "^9.6.0",
     "bits-ui": "^2.18.1",
     "svelte-check": "^4.7.5",
     "tailwindcss": "^4.3.3",
