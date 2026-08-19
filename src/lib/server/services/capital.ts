@@ -5,7 +5,7 @@ import { ledgerEntries } from '../db/schema';
 import { fetchDhanLedger, fetchDhanTradeHistory } from '../brokers/dhan';
 import { getStoredDhanToken, getRealizedPnlOffset } from './settings';
 import { dhanEnv } from '../config';
-import { matchFifoTrades } from './fifo';
+import { matchFifoTrades, calculateTradeCharges } from './fifo';
 import { getPnlSnapshot } from './pnl';
 
 const MONTHS: Record<string, string> = {
@@ -173,6 +173,13 @@ export function computeHighWaterMarkFee(
 	return { totalFeeOwed, finalCumulativeRealized: cumulative, finalHighWaterMark: highWaterMark };
 }
 
+export interface LiquidationChargesBreakdown {
+	stt: number;
+	dpCharges: number;
+	brokerageAndOther: number;
+	totalLiquidationCharges: number;
+}
+
 export interface ManagerPerformanceResult {
 	totalDeposited: number;
 	totalWithdrawn: number;
@@ -182,9 +189,15 @@ export interface ManagerPerformanceResult {
 	estimatedFeeOwed: number;
 	feePercent: number;
 	yourValueAfterEstimatedFee: number;
+	estimatedLiquidationCharges: number;
+	liquidationChargesBreakdown: LiquidationChargesBreakdown;
+	realizableNetValue: number;
+	fdRate: number;
+	fdBenchmarkValue: number;
 	savingsAccountRate: number;
 	savingsAccountBenchmarkValue: number;
-	benefit: number; // yourValueAfterEstimatedFee - savingsAccountBenchmarkValue
+	benefit: number; // yourValueAfterEstimatedFee - fdBenchmarkValue
+	realizableBenefit: number; // realizableNetValue - fdBenchmarkValue
 	capitalFlowCount: number;
 	asOf: string;
 	warnings: string[];
@@ -277,8 +290,65 @@ export async function getManagerPerformance(feePercent = 15, savingsRate = 7): P
 	}
 
 	const yourValueAfterEstimatedFee = liveValue - Math.max(0, totalFeeOwed);
+
+	let totalStt = 0;
+	let totalDpCharges = 0;
+	let totalBrokerageAndOther = 0;
+
+	if (snapshot) {
+		// Delivery holdings liquidation (CNC Sell)
+		for (const h of snapshot.holdings) {
+			if (h.netQty <= 0) continue;
+			const price = h.ltp ?? h.avgPrice ?? 0;
+			if (price <= 0) continue;
+
+			const turnover = h.netQty * price;
+			const stt = turnover * 0.001; // 0.1% STT on equity delivery sell
+			const exchangeFees = turnover * 0.0000297;
+			const sebiFees = turnover * 0.000001;
+			const brokerage = 0; // Dhan ₹0 brokerage for delivery
+			const gst = (brokerage + exchangeFees + sebiFees) * 0.18;
+			const dpCharge = 14.75; // ₹12.50 + 18% GST per ISIN sold from Demat
+
+			totalStt += stt;
+			totalDpCharges += dpCharge;
+			totalBrokerageAndOther += brokerage + exchangeFees + sebiFees + gst;
+		}
+
+		// Open positions liquidation
+		for (const p of snapshot.positions) {
+			if (p.netQty === 0) continue;
+			const price = p.ltp ?? p.avgPrice ?? 0;
+			if (price <= 0) continue;
+
+			const qty = Math.abs(p.netQty);
+			const txnType = p.netQty > 0 ? 'SELL' : 'BUY';
+			const prodType = p.productType || 'INTRADAY';
+
+			const totalCharges = calculateTradeCharges(txnType, prodType, qty, price);
+			const turnover = qty * price;
+			const isDelivery = prodType.includes('CNC') || prodType.includes('HOLDING');
+
+			let stt = 0;
+			if (txnType === 'SELL') {
+				stt = isDelivery ? turnover * 0.001 : turnover * 0.00025;
+			}
+			let dpCharge = 0;
+			if (txnType === 'SELL' && isDelivery) {
+				dpCharge = 14.75;
+			}
+
+			totalStt += stt;
+			totalDpCharges += dpCharge;
+			totalBrokerageAndOther += Math.max(0, totalCharges - stt);
+		}
+	}
+
+	const estimatedLiquidationCharges = totalStt + totalDpCharges + totalBrokerageAndOther;
+	const realizableNetValue = yourValueAfterEstimatedFee - estimatedLiquidationCharges;
+
 	const asOfDate = new Date();
-	const savingsAccountBenchmarkValue = simulateSavingsAccount(cashFlowSeries, savingsRate, asOfDate);
+	const fdBenchmarkValue = simulateSavingsAccount(cashFlowSeries, savingsRate, asOfDate);
 
 	return {
 		totalDeposited,
@@ -289,9 +359,20 @@ export async function getManagerPerformance(feePercent = 15, savingsRate = 7): P
 		estimatedFeeOwed: totalFeeOwed,
 		feePercent,
 		yourValueAfterEstimatedFee,
+		estimatedLiquidationCharges,
+		liquidationChargesBreakdown: {
+			stt: totalStt,
+			dpCharges: totalDpCharges,
+			brokerageAndOther: totalBrokerageAndOther,
+			totalLiquidationCharges: estimatedLiquidationCharges
+		},
+		realizableNetValue,
+		fdRate: savingsRate,
+		fdBenchmarkValue,
 		savingsAccountRate: savingsRate,
-		savingsAccountBenchmarkValue,
-		benefit: yourValueAfterEstimatedFee - savingsAccountBenchmarkValue,
+		savingsAccountBenchmarkValue: fdBenchmarkValue,
+		benefit: yourValueAfterEstimatedFee - fdBenchmarkValue,
+		realizableBenefit: realizableNetValue - fdBenchmarkValue,
 		capitalFlowCount: cashFlowSeries.length,
 		asOf: asOfDate.toISOString(),
 		warnings

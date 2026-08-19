@@ -28,8 +28,8 @@
 	const entries = listLedgerEntries();
 
 	let feePercent = $state(15);
-	let savingsRate = $state(7);
-	let perf = $derived(managerPerformance({ feePercent, savingsRate }));
+	let fdRate = $state(7);
+	let perf = $derived(managerPerformance({ feePercent, fdRate }));
 
 	// today, and 3 years back, as sensible sync defaults
 	const today = new Date().toISOString().slice(0, 10);
@@ -64,14 +64,20 @@
 	function fmt(n: number) {
 		return n.toLocaleString('en-IN', { maximumFractionDigits: 0 });
 	}
+
+	function pnlColor(n: number) {
+		if (n > 0) return 'text-emerald-600 dark:text-emerald-400';
+		if (n < 0) return 'text-rose-600 dark:text-rose-400';
+		return 'text-muted-foreground';
+	}
 </script>
 
 <div class="space-y-6">
 	<div>
 		<h1 class="text-xl font-semibold">Manager performance</h1>
 		<p class="mt-1 text-sm text-muted-foreground">
-			Compares your actual portfolio (net of an estimated performance fee) against what the same
-			deposits/withdrawals would be worth in a savings account instead.
+			Compares your actual portfolio (net of performance fee & liquidation charges) against what the same
+			deposits/withdrawals would be worth in a Fixed Deposit (FD) instead.
 		</p>
 	</div>
 
@@ -116,11 +122,11 @@
 			<div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
 				<div class="space-y-1 flex-1">
 					<Label for="feePercent">Manager fee (%, above high-water mark)</Label>
-					<Input id="feePercent" type="number" step="0.5" bind:value={feePercent} class="w-full" />
+					<Input id="feePercent" type="number" step="0.5" bind:value={feePercent} class="w-full font-mono" />
 				</div>
 				<div class="space-y-1 flex-1">
-					<Label for="savingsRate">Savings account rate (% p.a.)</Label>
-					<Input id="savingsRate" type="number" step="0.5" bind:value={savingsRate} class="w-full" />
+					<Label for="fdRate">FD rate (% p.a.)</Label>
+					<Input id="fdRate" type="number" step="0.5" bind:value={fdRate} class="w-full font-mono" />
 				</div>
 			</div>
 		</CardContent>
@@ -140,55 +146,92 @@
 			</div>
 		{/if}
 
-		<div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
-			<Card>
-				<CardContent class="p-4">
-					<p class="text-xs text-muted-foreground">Deposited / Withdrawn</p>
-					<p class="mt-1 text-lg font-semibold">₹{fmt(p.totalDeposited)} / ₹{fmt(p.totalWithdrawn)}</p>
-				</CardContent>
-			</Card>
-			<Card>
-				<CardContent class="p-4">
-					<p class="text-xs text-muted-foreground">Cumulative realized profit</p>
-					<p class="mt-1 text-lg font-semibold">₹{fmt(p.cumulativeRealizedProfit)}</p>
-				</CardContent>
-			</Card>
-			<Card>
-				<CardContent class="p-4">
-					<p class="text-xs text-muted-foreground">Estimated fee owed ({p.feePercent}% above HWM)</p>
-					<p class="mt-1 text-lg font-semibold">₹{fmt(p.estimatedFeeOwed)}</p>
-				</CardContent>
-			</Card>
-			<Card>
-				<CardContent class="p-4">
-					<p class="text-xs text-muted-foreground">Your value (net of estimated fee)</p>
-					<p class="mt-1 text-lg font-semibold">₹{fmt(p.yourValueAfterEstimatedFee)}</p>
-				</CardContent>
-			</Card>
-			<Card>
-				<CardContent class="p-4">
-					<p class="text-xs text-muted-foreground">
-						Savings account benchmark ({p.savingsAccountRate}%)
-					</p>
-					<p class="mt-1 text-lg font-semibold">₹{fmt(p.savingsAccountBenchmarkValue)}</p>
-				</CardContent>
-			</Card>
-			<Card
-				class={p.benefit >= 0
-					? 'border-primary bg-primary/5'
-					: 'border-destructive bg-destructive/5'}
-			>
-				<CardContent class="p-4">
-					<p class="text-xs text-muted-foreground">Benefit vs. savings account</p>
-					<p
-						class="mt-1 text-lg font-semibold"
-						class:text-primary={p.benefit >= 0}
-						class:text-destructive={p.benefit < 0}
-					>
-						{p.benefit >= 0 ? '+' : ''}₹{fmt(p.benefit)}
-					</p>
-				</CardContent>
-			</Card>
+		<div class="space-y-4">
+			<!-- Top Hero Highlights -->
+			<div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+				<!-- Real Net Position Card -->
+				<Card class="border-primary/40 bg-primary/5 shadow-xs">
+					<CardContent class="p-4">
+						<div class="flex items-center justify-between">
+							<p class="text-xs font-semibold uppercase tracking-wider text-primary">Real Net Position</p>
+							<span class="text-[10px] font-medium text-primary/90 bg-primary/10 px-1.5 py-0.5 rounded">To Bank</span>
+						</div>
+						<p class="mt-2 text-2xl font-bold font-mono text-primary tracking-tight">₹{fmt(p.realizableNetValue)}</p>
+						<p class="mt-1 text-xs text-muted-foreground">Net withdrawable after fee & liquidation charges</p>
+					</CardContent>
+				</Card>
+
+				<!-- FD Benchmark Card -->
+				<Card class="shadow-xs">
+					<CardContent class="p-4">
+						<div class="flex items-center justify-between">
+							<p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">FD Benchmark ({p.fdRate}%)</p>
+							<span class="text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded">Simulated</span>
+						</div>
+						<p class="mt-2 text-2xl font-bold font-mono tracking-tight">₹{fmt(p.fdBenchmarkValue)}</p>
+						<p class="mt-1 text-xs text-muted-foreground">Compounded FD rate on capital timeline</p>
+					</CardContent>
+				</Card>
+
+				<!-- Real Benefit Card -->
+				<Card class="shadow-xs {p.realizableBenefit >= 0 ? 'border-emerald-500/40 bg-emerald-500/10' : 'border-rose-500/40 bg-rose-500/10'}">
+					<CardContent class="p-4">
+						<div class="flex items-center justify-between">
+							<p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Real Benefit vs FD</p>
+							<span class="text-[10px] font-medium px-1.5 py-0.5 rounded {p.realizableBenefit >= 0 ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300' : 'bg-rose-500/20 text-rose-700 dark:text-rose-300'}">
+								{p.realizableBenefit >= 0 ? 'Outperformed' : 'Underperformed'}
+							</span>
+						</div>
+						<p class="mt-2 text-2xl font-bold font-mono tracking-tight {pnlColor(p.realizableBenefit)}">
+							{p.realizableBenefit >= 0 ? '+' : ''}₹{fmt(p.realizableBenefit)}
+						</p>
+						<p class="mt-1 text-xs text-muted-foreground">Net withdrawable position minus FD benchmark</p>
+					</CardContent>
+				</Card>
+			</div>
+
+			<!-- Detailed Breakdown Cards -->
+			<div class="grid grid-cols-2 gap-3 sm:grid-cols-5">
+				<Card>
+					<CardContent class="p-3.5">
+						<p class="text-xs font-medium text-muted-foreground uppercase tracking-wider">Deposited / Withdrawn</p>
+						<p class="mt-1 text-sm font-semibold font-mono">₹{fmt(p.totalDeposited)} / ₹{fmt(p.totalWithdrawn)}</p>
+						<p class="mt-0.5 text-[10px] text-muted-foreground">Net capital: ₹{fmt(p.netCapitalContributed)}</p>
+					</CardContent>
+				</Card>
+				<Card>
+					<CardContent class="p-3.5">
+						<p class="text-xs font-medium text-muted-foreground uppercase tracking-wider">Realized P&L</p>
+						<p class="mt-1 text-sm font-semibold font-mono {pnlColor(p.cumulativeRealizedProfit)}">
+							{p.cumulativeRealizedProfit >= 0 ? '+' : ''}₹{fmt(p.cumulativeRealizedProfit)}
+						</p>
+						<p class="mt-0.5 text-[10px] text-muted-foreground">Historical trades FIFO</p>
+					</CardContent>
+				</Card>
+				<Card>
+					<CardContent class="p-3.5">
+						<p class="text-xs font-medium text-muted-foreground uppercase tracking-wider">Est. Fee ({p.feePercent}%)</p>
+						<p class="mt-1 text-sm font-semibold font-mono text-muted-foreground">₹{fmt(p.estimatedFeeOwed)}</p>
+						<p class="mt-0.5 text-[10px] text-muted-foreground">HWM high-water mark</p>
+					</CardContent>
+				</Card>
+				<Card>
+					<CardContent class="p-3.5">
+						<p class="text-xs font-medium text-muted-foreground uppercase tracking-wider">Value After Fee</p>
+						<p class="mt-1 text-sm font-semibold font-mono">₹{fmt(p.yourValueAfterEstimatedFee)}</p>
+						<p class="mt-0.5 text-[10px] text-muted-foreground">Live gross value - fee</p>
+					</CardContent>
+				</Card>
+				<Card class="col-span-2 sm:col-span-1">
+					<CardContent class="p-3.5">
+						<p class="text-xs font-medium text-muted-foreground uppercase tracking-wider">Est. Liq. Charges</p>
+						<p class="mt-1 text-sm font-semibold font-mono text-amber-600 dark:text-amber-400">₹{fmt(p.estimatedLiquidationCharges)}</p>
+						<p class="mt-0.5 text-[10px] text-muted-foreground truncate" title="STT: ₹{fmt(p.liquidationChargesBreakdown.stt)} | DP: ₹{fmt(p.liquidationChargesBreakdown.dpCharges)}">
+							STT: ₹{fmt(p.liquidationChargesBreakdown.stt)} | DP: ₹{fmt(p.liquidationChargesBreakdown.dpCharges)}
+						</p>
+					</CardContent>
+				</Card>
+			</div>
 		</div>
 	{:catch error}
 		<p class="text-sm text-destructive">

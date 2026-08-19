@@ -44,11 +44,13 @@ export const updateLedgerEntryClassification = command(
 const PerformanceInput = v.optional(
 	v.object({
 		feePercent: v.optional(v.pipe(v.number(), v.minValue(0), v.maxValue(100))),
+		fdRate: v.optional(v.pipe(v.number(), v.minValue(0), v.maxValue(100))),
 		savingsRate: v.optional(v.pipe(v.number(), v.minValue(0), v.maxValue(100)))
 	})
 );
 
 export const managerPerformance = query(PerformanceInput, (input) => {
 	requireUser();
-	return getManagerPerformance(input?.feePercent ?? 15, input?.savingsRate ?? 7);
+	const rate = input?.fdRate ?? input?.savingsRate ?? 7;
+	return getManagerPerformance(input?.feePercent ?? 15, rate);
 });

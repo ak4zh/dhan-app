@@ -10,8 +10,8 @@
 	const snapshot = portfolio();
 
 	let feePercent = $state(15);
-	let savingsRate = $state(7);
-	let perf = $derived(managerPerformance({ feePercent, savingsRate }));
+	let fdRate = $state(7);
+	let perf = $derived(managerPerformance({ feePercent, fdRate }));
 
 	function fmt(n: number) {
 		return n.toLocaleString('en-IN', { maximumFractionDigits: 2 });
@@ -129,64 +129,112 @@
 					<div>
 						<CardTitle class="text-sm font-semibold sm:text-base">Performance</CardTitle>
 						<CardDescription class="text-[10px] sm:text-xs hidden sm:block">
-							Net portfolio value after performance fee vs. savings account benchmark
+							Net portfolio value after performance fee & estimated liquidation charges vs. FD benchmark
 						</CardDescription>
 					</div>
 					<div class="flex items-center gap-2 text-[11px] sm:text-xs shrink-0">
 						<div class="flex items-center gap-1">
 							<Label for="memberFeePercent" class="text-[10px] sm:text-xs text-muted-foreground">Fee%:</Label>
-							<Input id="memberFeePercent" type="number" step="0.5" bind:value={feePercent} class="h-6 w-14 sm:h-7 sm:w-16 text-[11px] sm:text-xs px-1.5" />
+							<Input id="memberFeePercent" type="number" step="0.5" bind:value={feePercent} class="h-6 w-14 sm:h-7 sm:w-16 text-[11px] sm:text-xs px-1.5 font-mono" />
 						</div>
 						<div class="flex items-center gap-1">
-							<Label for="memberSavingsRate" class="text-[10px] sm:text-xs text-muted-foreground">Sav%:</Label>
-							<Input id="memberSavingsRate" type="number" step="0.5" bind:value={savingsRate} class="h-6 w-14 sm:h-7 sm:w-16 text-[11px] sm:text-xs px-1.5" />
+							<Label for="memberFdRate" class="text-[10px] sm:text-xs text-muted-foreground">FD%:</Label>
+							<Input id="memberFdRate" type="number" step="0.5" bind:value={fdRate} class="h-6 w-14 sm:h-7 sm:w-16 text-[11px] sm:text-xs px-1.5 font-mono" />
 						</div>
 					</div>
 				</div>
 			</CardHeader>
-			<CardContent class="p-2.5 sm:p-6">
+			<CardContent class="p-3 sm:p-5 space-y-4">
 				{#await perf}
-					<div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-						{#each Array(6) as _}
-							<div class="h-12 rounded-md bg-muted/40 animate-pulse"></div>
+					<div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+						{#each Array(3) as _}
+							<div class="h-20 rounded-lg bg-muted/40 animate-pulse"></div>
+						{/each}
+					</div>
+					<div class="grid grid-cols-2 gap-2 sm:grid-cols-5">
+						{#each Array(5) as _}
+							<div class="h-14 rounded-lg bg-muted/40 animate-pulse"></div>
 						{/each}
 					</div>
 				{:then p}
 					{#if p.warnings && p.warnings.length > 0}
-						<div class="mb-2.5 space-y-1 rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-700 dark:text-amber-300">
+						<div class="space-y-1 rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-700 dark:text-amber-300">
 							{#each p.warnings as w}
 								<p>⚠️ {w}</p>
 							{/each}
 						</div>
 					{/if}
 
-					<div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-						<div class="rounded-lg border border-border bg-card p-2 sm:p-3">
-							<p class="text-[9px] sm:text-[11px] font-medium text-muted-foreground uppercase tracking-wider truncate">Deposited / Withdrawn</p>
-							<p class="mt-0.5 text-xs sm:text-base font-semibold font-mono truncate">₹{fmt(p.totalDeposited)} / ₹{fmt(p.totalWithdrawn)}</p>
+					<!-- Top Hero Highlights -->
+					<div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+						<!-- Real Net Position Card -->
+						<div class="rounded-xl border border-primary/40 bg-primary/5 p-3 sm:p-4 shadow-xs">
+							<div class="flex items-center justify-between">
+								<p class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-primary">Real Net Position</p>
+								<span class="text-[10px] font-medium text-primary/90 bg-primary/10 px-1.5 py-0.5 rounded">To Bank</span>
+							</div>
+							<p class="mt-1.5 text-lg sm:text-2xl font-bold font-mono text-primary tracking-tight">₹{fmt(p.realizableNetValue)}</p>
+							<p class="mt-1 text-[10px] text-muted-foreground">Net withdrawable after fee & liquidation charges</p>
 						</div>
-						<div class="rounded-lg border border-border bg-card p-2 sm:p-3">
-							<p class="text-[9px] sm:text-[11px] font-medium text-muted-foreground uppercase tracking-wider truncate">Realized Profit</p>
-							<p class="mt-0.5 text-xs sm:text-base font-semibold font-mono truncate {pnlColor(p.cumulativeRealizedProfit)}">
+
+						<!-- FD Benchmark Card -->
+						<div class="rounded-xl border border-border bg-card p-3 sm:p-4 shadow-xs">
+							<div class="flex items-center justify-between">
+								<p class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">FD Benchmark ({p.fdRate}%)</p>
+								<span class="text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded">Simulated</span>
+							</div>
+							<p class="mt-1.5 text-lg sm:text-2xl font-bold font-mono tracking-tight">₹{fmt(p.fdBenchmarkValue)}</p>
+							<p class="mt-1 text-[10px] text-muted-foreground">Compounded FD rate on capital timeline</p>
+						</div>
+
+						<!-- Real Benefit Card -->
+						<div class="rounded-xl border p-3 sm:p-4 shadow-xs {p.realizableBenefit >= 0 ? 'border-emerald-500/40 bg-emerald-500/10' : 'border-rose-500/40 bg-rose-500/10'}">
+							<div class="flex items-center justify-between">
+								<p class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">Real Benefit vs FD</p>
+								<span class="text-[10px] font-medium px-1.5 py-0.5 rounded {p.realizableBenefit >= 0 ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300' : 'bg-rose-500/20 text-rose-700 dark:text-rose-300'}">
+									{p.realizableBenefit >= 0 ? 'Outperformed' : 'Underperformed'}
+								</span>
+							</div>
+							<p class="mt-1.5 text-lg sm:text-2xl font-bold font-mono tracking-tight {pnlColor(p.realizableBenefit)}">
+								{p.realizableBenefit >= 0 ? '+' : ''}₹{fmt(p.realizableBenefit)}
+							</p>
+							<p class="mt-1 text-[10px] text-muted-foreground">Net withdrawable position minus FD benchmark</p>
+						</div>
+					</div>
+
+					<!-- Detailed Metrics Breakdown -->
+					<div class="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5 pt-1">
+						<div class="rounded-lg border border-border bg-card p-2.5 sm:p-3">
+							<p class="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Deposited / Withdrawn</p>
+							<p class="mt-1 text-xs sm:text-sm font-semibold font-mono">₹{fmt(p.totalDeposited)} / ₹{fmt(p.totalWithdrawn)}</p>
+							<p class="mt-0.5 text-[10px] text-muted-foreground">Net capital: ₹{fmt(p.netCapitalContributed)}</p>
+						</div>
+
+						<div class="rounded-lg border border-border bg-card p-2.5 sm:p-3">
+							<p class="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Realized P&L</p>
+							<p class="mt-1 text-xs sm:text-sm font-semibold font-mono {pnlColor(p.cumulativeRealizedProfit)}">
 								{p.cumulativeRealizedProfit >= 0 ? '+' : ''}₹{fmt(p.cumulativeRealizedProfit)}
 							</p>
+							<p class="mt-0.5 text-[10px] text-muted-foreground">Historical trades FIFO</p>
 						</div>
-						<div class="rounded-lg border border-border bg-card p-2 sm:p-3">
-							<p class="text-[9px] sm:text-[11px] font-medium text-muted-foreground uppercase tracking-wider truncate">Est. Fee ({p.feePercent}%)</p>
-							<p class="mt-0.5 text-xs sm:text-base font-semibold font-mono text-muted-foreground truncate">₹{fmt(p.estimatedFeeOwed)}</p>
+
+						<div class="rounded-lg border border-border bg-card p-2.5 sm:p-3">
+							<p class="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Est. Fee ({p.feePercent}%)</p>
+							<p class="mt-1 text-xs sm:text-sm font-semibold font-mono text-muted-foreground">₹{fmt(p.estimatedFeeOwed)}</p>
+							<p class="mt-0.5 text-[10px] text-muted-foreground">HWM high-water mark</p>
 						</div>
-						<div class="rounded-lg border border-border bg-card p-2 sm:p-3">
-							<p class="text-[9px] sm:text-[11px] font-medium text-muted-foreground uppercase tracking-wider truncate">Net Value</p>
-							<p class="mt-0.5 text-xs sm:text-base font-semibold font-mono truncate">₹{fmt(p.yourValueAfterEstimatedFee)}</p>
+
+						<div class="rounded-lg border border-border bg-card p-2.5 sm:p-3">
+							<p class="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Value After Fee</p>
+							<p class="mt-1 text-xs sm:text-sm font-semibold font-mono">₹{fmt(p.yourValueAfterEstimatedFee)}</p>
+							<p class="mt-0.5 text-[10px] text-muted-foreground">Live gross value - fee</p>
 						</div>
-						<div class="rounded-lg border border-border bg-card p-2 sm:p-3">
-							<p class="text-[9px] sm:text-[11px] font-medium text-muted-foreground uppercase tracking-wider truncate">Savings Bench. ({p.savingsAccountRate}%)</p>
-							<p class="mt-0.5 text-xs sm:text-base font-semibold font-mono truncate">₹{fmt(p.savingsAccountBenchmarkValue)}</p>
-						</div>
-						<div class="rounded-lg border p-2 sm:p-3 {p.benefit >= 0 ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-rose-500/40 bg-rose-500/5'}">
-							<p class="text-[9px] sm:text-[11px] font-medium text-muted-foreground uppercase tracking-wider truncate">Benefit vs. Savings</p>
-							<p class="mt-0.5 text-xs sm:text-base font-semibold font-mono truncate {pnlColor(p.benefit)}">
-								{p.benefit >= 0 ? '+' : ''}₹{fmt(p.benefit)}
+
+						<div class="rounded-lg border border-border bg-card p-2.5 sm:p-3 col-span-2 sm:col-span-1">
+							<p class="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Est. Liq. Charges</p>
+							<p class="mt-1 text-xs sm:text-sm font-semibold font-mono text-amber-600 dark:text-amber-400">₹{fmt(p.estimatedLiquidationCharges)}</p>
+							<p class="mt-0.5 text-[10px] text-muted-foreground truncate" title="STT: ₹{fmt(p.liquidationChargesBreakdown.stt)} | DP: ₹{fmt(p.liquidationChargesBreakdown.dpCharges)}">
+								STT: ₹{fmt(p.liquidationChargesBreakdown.stt)} | DP: ₹{fmt(p.liquidationChargesBreakdown.dpCharges)}
 							</p>
 						</div>
 					</div>
