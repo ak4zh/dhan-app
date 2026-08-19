@@ -1,11 +1,18 @@
 <script lang="ts">
 	import { portfolio } from '$lib/remote/pnl.remote';
+	import { managerPerformance } from '$lib/remote/capital.remote';
 	import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '$lib/components/ui/card';
 	import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '$lib/components/ui/table';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
 
 	const snapshot = portfolio();
+
+	let feePercent = $state(15);
+	let savingsRate = $state(7);
+	let perf = $derived(managerPerformance({ feePercent, savingsRate }));
 
 	function fmt(n: number) {
 		return n.toLocaleString('en-IN', { maximumFractionDigits: 2 });
@@ -129,6 +136,80 @@
 				</CardContent>
 			</Card>
 		{/if}
+
+		<!-- Manager Performance Section -->
+		<Card>
+			<CardHeader class="border-b border-border py-3 px-4 sm:px-6">
+				<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+					<div>
+						<CardTitle class="text-base font-semibold">Manager Performance</CardTitle>
+						<CardDescription class="text-xs">
+							Net portfolio value after performance fee vs. savings account benchmark
+						</CardDescription>
+					</div>
+					<div class="flex items-center gap-3 text-xs">
+						<div class="flex items-center gap-1.5">
+							<Label for="memberFeePercent" class="text-xs text-muted-foreground whitespace-nowrap">Fee %:</Label>
+							<Input id="memberFeePercent" type="number" step="0.5" bind:value={feePercent} class="h-7 w-16 text-xs px-2" />
+						</div>
+						<div class="flex items-center gap-1.5">
+							<Label for="memberSavingsRate" class="text-xs text-muted-foreground whitespace-nowrap">Savings %:</Label>
+							<Input id="memberSavingsRate" type="number" step="0.5" bind:value={savingsRate} class="h-7 w-16 text-xs px-2" />
+						</div>
+					</div>
+				</div>
+			</CardHeader>
+			<CardContent class="p-4 sm:p-6">
+				{#await perf}
+					<div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+						{#each Array(6) as _}
+							<div class="h-16 rounded-md bg-muted/40 animate-pulse"></div>
+						{/each}
+					</div>
+				{:then p}
+					{#if p.warnings && p.warnings.length > 0}
+						<div class="mb-4 space-y-1 rounded-md border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-700 dark:text-amber-300">
+							{#each p.warnings as w}
+								<p>⚠️ {w}</p>
+							{/each}
+						</div>
+					{/if}
+
+					<div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+						<div class="rounded-lg border border-border bg-card p-3">
+							<p class="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Deposited / Withdrawn</p>
+							<p class="mt-1 text-sm sm:text-base font-semibold font-mono">₹{fmt(p.totalDeposited)} / ₹{fmt(p.totalWithdrawn)}</p>
+						</div>
+						<div class="rounded-lg border border-border bg-card p-3">
+							<p class="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Realized Profit</p>
+							<p class="mt-1 text-sm sm:text-base font-semibold font-mono {pnlColor(p.cumulativeRealizedProfit)}">
+								{p.cumulativeRealizedProfit >= 0 ? '+' : ''}₹{fmt(p.cumulativeRealizedProfit)}
+							</p>
+						</div>
+						<div class="rounded-lg border border-border bg-card p-3">
+							<p class="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Est. Fee ({p.feePercent}%)</p>
+							<p class="mt-1 text-sm sm:text-base font-semibold font-mono text-muted-foreground">₹{fmt(p.estimatedFeeOwed)}</p>
+						</div>
+						<div class="rounded-lg border border-border bg-card p-3">
+							<p class="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Net Value</p>
+							<p class="mt-1 text-sm sm:text-base font-semibold font-mono">₹{fmt(p.yourValueAfterEstimatedFee)}</p>
+						</div>
+						<div class="rounded-lg border border-border bg-card p-3">
+							<p class="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Savings Bench. ({p.savingsAccountRate}%)</p>
+							<p class="mt-1 text-sm sm:text-base font-semibold font-mono">₹{fmt(p.savingsAccountBenchmarkValue)}</p>
+						</div>
+						<div class="rounded-lg border p-3 {p.benefit >= 0 ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-rose-500/40 bg-rose-500/5'}">
+							<p class="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Benefit vs. Savings</p>
+							<p class="mt-1 text-sm sm:text-base font-semibold font-mono {pnlColor(p.benefit)}">
+								{p.benefit >= 0 ? '+' : ''}₹{fmt(p.benefit)}
+							</p>
+						</div>
+					</div>
+				{:catch error}
+					<p class="text-xs text-destructive">Couldn't load performance metrics: {error.message}</p>
+				{/await}
+			</CardContent>
+		</Card>
 
 		<!-- Open Positions Section -->
 		<Card>

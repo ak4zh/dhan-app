@@ -3,7 +3,7 @@ import * as v from 'valibot';
 import { desc, eq } from 'drizzle-orm';
 import { db } from '$server/db/client';
 import { ledgerEntries } from '$server/db/schema';
-import { requireAdmin } from '$server/auth-guard';
+import { requireAdmin, requireUser } from '$server/auth-guard';
 import { syncLedgerFromDhan, getManagerPerformance } from '$server/services/capital';
 
 export const listLedgerEntries = query(() => {
@@ -49,6 +49,6 @@ const PerformanceInput = v.optional(
 );
 
 export const managerPerformance = query(PerformanceInput, (input) => {
-	requireAdmin();
+	requireUser();
 	return getManagerPerformance(input?.feePercent ?? 15, input?.savingsRate ?? 7);
 });
